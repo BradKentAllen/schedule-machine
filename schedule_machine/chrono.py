@@ -12,7 +12,8 @@ __all__ = ['chronograph',]
 
 #### letter revision update requires update to config files
 
-# Rev 0.0.1 - DEV
+# Rev 0.0.1 - initial
+# Rev 0.0.2 - bug fix: added append to schedule call
 
 __version__ = 'vZ.0.1'
 # Z is non-production developmental rev
@@ -159,7 +160,7 @@ class Chronograph:
                         if self.jobs['schedule'] != []:
                             for details in self.jobs['schedule']:
                                 if details[1][:2] == HHMMSS[0] and details[1][-2:] == HHMMSS[1]:
-                                    print(f'run schedule job')
+                                    self.thread_jobs.append(details[0])
 
 
                         #### Hour ####
