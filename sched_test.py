@@ -3,19 +3,36 @@
 from schedule_machine.chrono import Chronograph, Timers, get_time_stamp
 from time import sleep
 
-def second_function():
-	print(get_time_stamp('US/Pacific'))
-
-def test_function():
-	print('5 second function')
+global poll_count
+poll_count = 0
 
 def poll_test():
-	print('*', end='')
+	global poll_count
+	print(poll_count, end='')
+	poll_count +=1
 
 def poll_test2():
 	print('-', end='')
 	sleep(.07)
 
+def second_function():
+	global poll_count
+	print(get_time_stamp('US/Pacific'))
+	poll_count = 0
+
+def five_second_function():
+	print('5 second function')
+
+def fifteen_second_function():
+	print('start 15 second function')
+	sleep(10)
+	print('end 15 second function')
+
+def minute_function():
+	print('minute function runs')
+
+def test_function():
+	print('this is the test function')
 
 print('test run')
 
@@ -25,10 +42,14 @@ maker = Timers()
 maker.create_timer('every poll', poll_test)
 maker.create_timer('every poll', poll_test2)
 maker.create_timer('every second', second_function)
-maker.create_timer('on the 5 second', test_function)
+maker.create_timer('on the 5 second', five_second_function)
+#maker.create_timer('on the 15 second', fifteen_second_function)
+maker.create_timer('every minute', minute_function)
+
+maker.create_timer('schedule', test_function, '17:52')
 
 #### Run Chronograph
-chrono = Chronograph(maker.timer_jobs, .1,'US/Pacific', False)
+chrono = Chronograph(maker.timer_jobs, 'US/Pacific')
 
 
 # 'US/Aleutian', 'US/Hawaii', 'US/Alaska', 'US/Arizona', 'US/Michigan'

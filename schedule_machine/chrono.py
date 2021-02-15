@@ -20,6 +20,7 @@ __version__ = 'vZ.0.1'
 from datetime import datetime
 from time import time, sleep
 import pytz
+import threading
 
 class Timers:
     def __init__(self):
@@ -35,7 +36,7 @@ class Timers:
             'on the 15 minute': [],
             'on the 30 minute': [],
             'every hour': [],
-            'schedule': [],
+            'schedule': [],  # (function, 'HH:MM')
             }
 
     class Scheduled_Events:
@@ -51,21 +52,38 @@ class Timers:
     def create_timer(self, T_mode, func, mark=None):
         timer_mode = T_mode.lower()
         if timer_mode[:2] == 'on' or timer_mode[:5] == 'every':
-            self.timer_jobs[timer_mode].append(func)
-        elif timer_mode[:2] == 'at':
-            pass
+            try:
+                self.timer_jobs[timer_mode].append(func)
+            except KeyError:
+                raise ValueError(f'Attempted to use non-timer: {T_mode}')
+
         elif timer_mode == 'schedule':
-            pass
+            if type(mark[:2]) == str and type(mark[-2:]) == str:
+                try:
+                    int(mark[:2])
+                except ValueError:
+                    raise ValueError(f'Schedule time format issue, are hours in 24 hour format? e.g. 07:02')
+                try:
+                    int(mark[-2:])
+                except ValueError:
+                    raise ValueError(f'Schedule time format issue, are minutes two digits? e.g. 17:02')
+                
+                if 0 <= int(mark[:2]) < 25 and 0 <= int(mark[-2:]) < 60:
+                    self.timer_jobs['schedule'].append((func, mark))
+                else:
+                    raise ValueError(f'Attempted to schedule time not in format HH:MM {func[1]}')
+            else:
+                raise ValueError(f'Attempted to schedule time that is not a string {func[1]}')
+
         else:
             raise ValueError(f'Attempted to use non-timer: {T_mode}')
 
 
 class Chronograph:
-    def __init__(self, jobs, poll_time=.1, local_time_zone='UTC', poll_priority=False):
+    def __init__(self, jobs, local_time_zone='UTC'):
         print(f'init Timer: {local_time_zone}')
         self.jobs = jobs
-        self.POLL_MILLIS = poll_time * 1000
-        self.POLL_PRIORITY = poll_priority
+        self.POLL_MILLIS = 100  # .1 seconds
         self.local_time_zone = local_time_zone
 
     def run_timers(self):
@@ -74,15 +92,28 @@ class Chronograph:
         last_milli = 0
         start_milli = time() * 1000
 
+        # this only allows one thread to run at a time
+        self.thread_lock = False
+
         while True:
             milli = (time() * 1000) - start_milli
+
+            #### deal with millis rolling
+            # this should never happen
+            if milli < 0:
+                milli = (time() * 1000)
+                last_milli = 0
+
+            #### jobs are run in two threads
+            # every poll jobs are run in the main thread
+            # all others are grouped and run in a separate thread
+            self.thread_jobs = []
+
             if (milli - last_milli) >= self.POLL_MILLIS:
                 HHMMSS = get_time(self.local_time_zone)
 
-                #### Every poll ####
-                if self.jobs['every poll'] != []:
-                    self.run_poll_jobs(self.jobs['every poll'])
-
+                # note: every poll jobs are run after thread_jobs is
+                # sent off (see below)
 
                 #### Second ####
                 if last_second != HHMMSS[2]:
@@ -94,50 +125,75 @@ class Chronograph:
                     #### On second jobs ####
                     if int(HHMMSS[2])%5 == 0 or int(HHMMSS[2]) == 0:
                         for job in self.jobs['on the 5 second']:
-                            job()
+                            self.thread_jobs.append(job)
 
                     if int(HHMMSS[2])%15 == 0 or int(HHMMSS[2]) == 0:
                         for job in self.jobs['on the 15 second']:
-                            job()
+                            self.thread_jobs.append(job)
 
                     if int(HHMMSS[2])%30 == 0 or int(HHMMSS[2]) == 0:
                         for job in self.jobs['on the 30 second']:
-                            job()
+                            self.thread_jobs.append(job)
 
                     #### Minute ####
                     if last_minute != HHMMSS[1]:
                         #### Every minute jobs ####
                         for job in self.jobs['every minute']:
-                            job()
+                            self.thread_jobs.append(job)
                         last_minute = HHMMSS[1]
 
-                        #### On second jobs ####
+                        #### On minute jobs ####
                         if int(HHMMSS[1])%5 == 0 or int(HHMMSS[1]) == 0:
                             for job in self.jobs['on the 5 minute']:
-                                job()
+                                self.thread_jobs.append(job)
 
                         if int(HHMMSS[1])%15 == 0 or int(HHMMSS[1]) == 0:
                             for job in self.jobs['on the 15 minute']:
-                                job()
+                                self.thread_jobs.append(job)
 
                         if int(HHMMSS[1])%30 == 0 or int(HHMMSS[1]) == 0:
                             for job in self.jobs['on the 30 minute']:
-                                job()
+                                self.thread_jobs.append(job)
+
+                        #### schedule jobs
+                        if self.jobs['schedule'] != []:
+                            for details in self.jobs['schedule']:
+                                if details[1][:2] == HHMMSS[0] and details[1][-2:] == HHMMSS[1]:
+                                    print(f'run schedule job')
+
 
                         #### Hour ####
                         if last_hour != HHMMSS[0]:
                             #### Every hour jobs ####
                             for job in self.jobs['every hour']:
-                                job()
+                                self.thread_jobs.append(job)
                             last_hour = HHMMSS[0]
+
+                #### Run all jobs but poll in separate thread
+                if self.thread_lock == False:
+                    chrono_thread = threading.Thread(target=self.run_thread_jobs, daemon=True)
+                    chrono_thread.start()
+                else:
+                    if self.thread_jobs == []:
+                        pass
+                    else:
+                        print('>>> LOCKED missed chrono_thread <<<')
 
                 #### polling marker
                 last_milli = milli
 
+                #### Run Every poll jobs ####
+                if self.jobs['every poll'] != []:
+                    for job in self.jobs['every poll']:
+                        job()
 
-    def run_poll_jobs(self, job_list):
-        for job in job_list:
+
+    def run_thread_jobs(self):
+        self.thread_lock = True
+        for job in self.thread_jobs:
             job()
+        self.thread_lock = False
+        
 
 
 
