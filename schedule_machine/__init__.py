@@ -12,9 +12,9 @@ __all__ = ['chronograph',]
 
 #### letter revision update requires update to config files
 
-# Rev 0.0.1 - DEV
+# Rev 0.0.1 - initial operation, all functions working
 
-__version__ = 'vZ.0.1'
+__version__ = 'v0.0.1'
 # Z is non-production developmental rev
 
 
