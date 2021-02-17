@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# chron_utilites.py
+# chron.py
 
-'''for schedule-machine
+'''primary code for schedule-machine
+Simple schedule package for managing timed functions in a python
+based machine such as Raspberry Pi.  Target is to get reasonably 
+consistent timing to .1 seconds.
 
 AditNW LLC, Redmond , WA
 www.AditNW.com
@@ -14,17 +17,27 @@ __all__ = ['chronograph',]
 
 # Rev 0.0.1 - initial
 # Rev 0.0.2 - bug fix: added append to schedule call
+# Rev 0.0.3 - debug/neaten
 
-__version__ = 'vZ.0.1'
+__version__ = 'vZ.0.3'
 # Z is non-production developmental rev
 
 from datetime import datetime
 from time import time, sleep
 import pytz
 import threading
+import types
+
 
 class Timers:
+    '''Class to create dictionary of timers for use in Chronograph.
+    '''
     def __init__(self):
+        '''self.timer_jobs is the primary resource in Timers
+        This is filled by Timers
+        It is then accessed by the source
+        and served to Chronograph
+        '''
         #### timer job lists
         self.timer_jobs = {
             'every poll': [],
@@ -40,52 +53,89 @@ class Timers:
             'schedule': [],  # (function, 'HH:MM')
             }
 
-    class Scheduled_Events:
-        '''Scheduled Events are for scheduled items set 
-        for a specific time.  Mark is time HH:MM:SS
-        '''
-        def __init__(self, T_mode, func, mark=None):
-            print('init')
-            self.T_mode = T_mode
-            self.func = func
-            self.mark = mark
-
     def create_timer(self, T_mode, func, mark=None):
+        '''Add a timer to self.timer_jobs
+        'on' and 'every' timers require a function
+        'schedule' timers require function and a time
+        Time must be a string in 24 hr format
+
+        Two types of timers (T-mode):
+        1) 'on' and 'every' set up regular timers
+        2) 'schedule' timers occur at a specific, local time
+        '''
+        #### validate timer
+        # allow capitalization in timers
         timer_mode = T_mode.lower()
+
+        # is a string
+        if not isinstance(timer_mode, str):
+            raise ValueError(f'Timer mode must be in quotes (a string). e.g. "on the 5 seconds"')
+
+        # check if timer is in timer_jobs
+        if timer_mode not in list(self.timer_jobs.keys()):
+            raise ValueError(f'Attempted to use non-timer: "{T_mode}", available timers are: {list(self.timer_jobs.keys())}')
+
+        #### validate functio
+        if not isinstance(func, types.FunctionType):
+            raise ValueError(f'Timer\'s function must be a function object, it should not have () on the end. e.g. myfunction, not myfunction()')
+
         if timer_mode[:2] == 'on' or timer_mode[:5] == 'every':
-            try:
-                self.timer_jobs[timer_mode].append(func)
-            except KeyError:
-                raise ValueError(f'Attempted to use non-timer: {T_mode}')
+            #### on and every can be directly placed in timer_jobs
+            self.timer_jobs[timer_mode].append(func)
+
 
         elif timer_mode == 'schedule':
-            if type(mark[:2]) == str and type(mark[-2:]) == str:
-                try:
-                    int(mark[:2])
-                except ValueError:
-                    raise ValueError(f'Schedule time format issue, are hours in 24 hour format? e.g. 07:02')
-                try:
-                    int(mark[-2:])
-                except ValueError:
-                    raise ValueError(f'Schedule time format issue, are minutes two digits? e.g. 17:02')
-                
-                if 0 <= int(mark[:2]) < 25 and 0 <= int(mark[-2:]) < 60:
-                    self.timer_jobs['schedule'].append((func, mark))
-                else:
-                    raise ValueError(f'Attempted to schedule time not in format HH:MM {func[1]}')
-            else:
-                raise ValueError(f'Attempted to schedule time that is not a string {func[1]}')
+            #### check format of the schedule time
+            # is 24 hour format string
+            if not isinstance(mark, str) or len(mark) != 5:
+                raise ValueError(f'Schedule time ({mark}) must be a string in 24 hour format. e.g. "07:02"')
 
+            # validate timer hours and minutes are formatted correctly
+            try:
+                # validate hours
+                int(mark[:2])
+            except ValueError:
+                raise ValueError(f'Schedule time format issue, are hours in 24 hour format? e.g. "07:02"')
+            try:
+                # validate minutes
+                int(mark[-2:])
+            except ValueError:
+                raise ValueError(f'Schedule time ({mark}) format issue, are minutes two digits? e.g. 17:02')
+            
+            #### add schedule timer to timer_jobs
+            if 0 <= int(mark[:2]) < 24 and 0 <= int(mark[-2:]) < 60:
+                self.timer_jobs['schedule'].append((func, mark))
+            else:
+                # error caused by hours or minutes not within range
+                raise ValueError(f'Scheduled time ({mark}) not in 24 hour format HH:MM')
+            
         else:
+            # error for not being on, every, or schedule (this should never happen)
             raise ValueError(f'Attempted to use non-timer: {T_mode}')
 
 
 class Chronograph:
-    def __init__(self, jobs, local_time_zone='UTC'):
-        print(f'init Timer: {local_time_zone}')
+    def __init__(self, jobs, local_time_zone='UTC', wait_to_run=False):
+        '''Chronograph object runs timers
+        Polling is .1 seconds
+        every poll timers run in primary thread
+        A separate thread (chrono_thread) is created for all other timers
+        chrono_thread has a lock so only one can run at a time
+        If chrono_thread is locked, the next chrono_thread will be skipped
+        This effectively gives every_poll timers priority
+        '''
+        # self.jobs are all of the timers
+        # it is a dictionary created by the Timers class
         self.jobs = jobs
+
+        # polling time in milliseconds
         self.POLL_MILLIS = 100  # .1 seconds
         self.local_time_zone = local_time_zone
+
+        if wait_to_run == False:
+            self.run_timers()
+
+
 
     def run_timers(self):
         #### set up last varables
