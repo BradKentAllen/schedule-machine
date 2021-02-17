@@ -17,7 +17,7 @@ __all__ = ['chronograph',]
 
 # Rev 0.0.1 - initial
 # Rev 0.0.2 - bug fix: added append to schedule call
-# Rev 0.0.3 - debug/neaten
+# Rev 0.0.3 - debug/neaten, add wait_to_run, redid validations
 
 __version__ = 'vZ.0.3'
 # Z is non-production developmental rev
