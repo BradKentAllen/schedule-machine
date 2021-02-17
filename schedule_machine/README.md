@@ -1,10 +1,17 @@
 ## README
 
-**schedule_machine** is a general purpose timer package for scheduling functions to be run at specific intervals or times.  
+**schedule_machine** is a general purpose timer package for scheduling functions to be run at specific intervals or times.  It is useful for:
+
+* Data acquisition, where rates are 10 hz or less
+* Environment control such as for terrariums, animal habitats, etc.
+* Light and appliance controls
+* Surface-based drones such as slow moving wheeled and tracked vehicles, boats, model boats, etc.
+* Testing machine controls
+* Working with Raspberry Pi GPIO (we highly recommend using gpiozero)
 
 Python can pose a number of challenges when running timed processes on machines.  With the appropriate warnings though, a simple timer with a well thought out control system can control machines with timing of 100 millisecond intervals and where occassionally lost functions are not disastrous.  Understanding how schedule_machine works will allow you to perform data acquisition, timing tasks, and machine control with reasonable reliability.
 
-**WARNING - Python is not a great real-time control:** Python has serious limitations for real-time processes.  It is not true multi-threading and has a garbage collector which can be called at any time that will block all threads.  This will disrupt the process.  
+**WARNING - Python is not the best real-time machine control:** Python has limitations for real-time processes.  It is not true multi-threading and has a garbage collector which can be called at any time and will block all threads.  This will disrupt the process.  
 
 **WARNING - YOUR CODE HAS TO WORK:** Timing systems are notorious hiders of bugs and glitches.  Significat testig is required to validate their reliability and, even then, they frequently are victims of oddball issues such as daylight savings time errors.  **DO NOT USE FOR SAFETY-CRITICAL or LIFE-CONTROLLING PROCESSES.**
 
@@ -100,9 +107,11 @@ maker.create_timer('every hour', demo_job)
 maker.create_timer('schedule', test_function, '17:52')
 ```
 
+
+
 ### 'schedule' timers
 
-'schedule' timers have an additional parameter, the time they are to be called.  This time must be a string in 24 hour format 'HH:MM'.
+'schedule' timers call a function at a specific time.  They have an additional parameter, the time they are to be called.  This time must be a string in 24 hour format 'HH:MM'.
 
 ```
 #### examples of good schedule timers
@@ -114,12 +123,6 @@ maker.create_timer('schedule', test_function(), '17:52')  # function has ()
 maker.create_timer('schedule', test_function, '6:52') # not in HH:MM format
 maker.create_timer('schedule', test_function, '24:00')	# midnight is 00:00
 ```
-
-
-
-
-
-
 
 
 
@@ -152,45 +155,109 @@ chrono.run_timers()
 
 ## Live Demo of Various Timers
 
-
-
-
-
-
+This demo allows you to play around with how various timer functions interact.  It is set up initially with a long enough sleep in the 'every 15 second' function to cause the next chrono_thread to be called before the first one is complete.  The debug will show when this happens.
 
 ```
+from schedule_machine.chrono import Chronograph, Timers, get_time_stamp, job_function_tester
 
-#### timer parameters
-func:		# function
-T_mode:		# Timer mode
-mark:		# optional, HH:MM, or HH:MM:SS
-```
+from time import sleep
 
+global poll_count
+poll_count = 0
 
+def poll_test():
+	global poll_count
+	print(poll_count, end='')
+	poll_count +=1
 
+def poll_test2():
+	print('-', end='')
+	sleep(.07)
 
+def second_function():
+	global poll_count
+	print(get_time_stamp('US/Pacific'))
+	poll_count = 0
 
-```
-from schedule_machine.chrono import Chronograph, Timers
+def five_second_function():
+	print('5 second function')
+
+def fifteen_second_function():
+	print('start 15 second function')
+	sleep(10)
+	print('end 15 second function')
+
+def minute_function():
+	print('minute function runs')
+
+def test_function():
+	print('this is the test function')
+
+print('test run')
 
 #### Create Timers
-# create schedule_jobs to create timers and place in schedule_maker.timer_jobs
-schedule_maker = Timers()
+maker = Timers()
 
-schedule_maker.create_timer('every poll', demo_job)
-schedule_maker.create_timer('schedule',  demo_job, '17:52')
+maker.create_timer('every poll', poll_test)
+maker.create_timer('every poll', poll_test2)
+maker.create_timer('every second', second_function)
+maker.create_timer('on the 5 second', five_second_function)
+maker.create_timer('on the 15 second', fifteen_second_function)
+maker.create_timer('every minute', minute_function)
 
+maker.create_timer('schedule', test_function, '17:32')
 
-#### Instantiate the Chronograph
-# create chrono with list of timer_jobs and time zone
-chrono = Chronograph(schedule_maker.timer_jobs, 'US/Pacific')
+#### helper method to check function times
+''' # explained below
+job_function_tester(maker.timer_jobs)
+exit()
+'''
+
+#### Run Chronograph
+#Chronograph(maker.timer_jobs, 'US/Pacific')
+chrono = Chronograph(maker.timer_jobs, 'US/Pacific', wait_to_run=True)
 
 # 'US/Aleutian', 'US/Hawaii', 'US/Alaska', 'US/Arizona', 'US/Michigan'
-# 'US/Pacific', 'US/Mountain', 'US/Central', 'US/Eastern', 'UTC'
-
-#### run the Chronograph timers
-chrono.run_timers()
+# 'US/Pacific', 'US/Mountain', 'US/Central', 'US/Eastern'
+chrono.run_timers(debug=True)
 ```
 
 
+
+# Utilities
+
+### Optimize Operation (job_function_tester)
+
+A key step in optimizing a system of timers is understanding how long each called function takes.  A utility method in schedule_machine allows you to quickly get the processing time for each function.  Simply run job_function_tester(jobs) after creating timers using the Timer class.  The method is shown in context but commented out above, in the Live Demo. 
+
+```
+from schedule_machine.chrono import job_function_tester
+
+'''
+code to create timers here
+'''
+
+#### helper method to check function times
+job_function_tester(maker.timer_jobs)
+exit()
+```
+
+
+
+### get_time, get_time_stamp
+
+If time information is needed in other aspects of your project you can access it using these two methods:
+
+```
+from schedule_machine.chrono import get_time, get_time_stamp
+
+string_time_info = get_time(<time zone>)
+string_time[0]	# hour as HH in 24 hour format
+string_time[1]	# minute as MM
+string_time[2]	# seconds as SS
+
+time_stamp = get_time_stamp(<time zone>)  # returns time as string in HH:MM format
+
+time_stamp = get_time_stamp(<time zone>, time_format='HMS')  # returns time as string in HH:MM:SS format
+```
 

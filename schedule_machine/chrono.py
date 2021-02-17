@@ -27,6 +27,7 @@ from time import time, sleep
 import pytz
 import threading
 import types
+import timeit
 
 
 class Timers:
@@ -137,7 +138,7 @@ class Chronograph:
 
 
 
-    def run_timers(self):
+    def run_timers(self, debug=False):
         #### set up last varables
         (last_hour, last_minute, last_second) = get_time(self.local_time_zone)
         last_milli = 0
@@ -228,7 +229,9 @@ class Chronograph:
                     if self.thread_jobs == []:
                         pass
                     else:
-                        print('>>> LOCKED missed chrono_thread <<<')
+                        if debug == True: print('>>> LOCKED missed chrono_thread <<<')
+                        pass
+
 
                 #### polling marker
                 last_milli = milli
@@ -245,6 +248,39 @@ class Chronograph:
             job()
         self.thread_lock = False
         
+
+def job_function_tester(jobs):
+    '''runs each function in the timer_jobs dictionary and 
+    returns the run time required for each'''
+    time_results = {}
+    print('\n\n Evaluate each functions time to run:')
+    print(f'function name                run time')
+    def elapsed_time(millis):
+        if millis < 1000:
+            return f'{millis:.3f} milliseconds'
+        else:
+            return f'{(millis/1000):.2f} seconds'
+
+    for key, details in jobs.items():
+        for job in details:
+            # check for function to find on and every timers
+            if isinstance(job, types.FunctionType):
+                print('\n')
+                start_milli = (time() * 1000) 
+                job()
+                total_milli = ((time() * 1000) - start_milli)
+                print(f'{job.__name__}: {elapsed_time(total_milli)}')
+
+            # check for tuple to find schedule timers
+            elif isinstance(job, tuple):
+                print('\n')
+                start = timeit.timeit()
+                job[0]()
+                end = timeit.timeit()
+                print(f'{job[0].__name__}: {elapsed_time(total_milli)}')
+
+            else:
+                print('\nimproper timer')
 
 
 
