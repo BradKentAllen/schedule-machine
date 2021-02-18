@@ -18,6 +18,7 @@ __all__ = ['chronograph',]
 # Rev 0.0.1 - initial
 # Rev 0.0.2 - bug fix: added append to schedule call
 # Rev 0.0.3 - debug/neaten, add wait_to_run, redid validations
+# Rev 0.0.4 - change function check to hasattr(func, '__call__')
 
 __version__ = 'vZ.0.3'
 # Z is non-production developmental rev
@@ -76,8 +77,9 @@ class Timers:
         if timer_mode not in list(self.timer_jobs.keys()):
             raise ValueError(f'Attempted to use non-timer: "{T_mode}", available timers are: {list(self.timer_jobs.keys())}')
 
-        #### validate functio
-        if not isinstance(func, types.FunctionType):
+        #### validate function
+        #if not isinstance(func, types.FunctionType):
+        if not hasattr(func, '__call__'):
             raise ValueError(f'Timer\'s function must be a function object, it should not have () on the end. e.g. myfunction, not myfunction()')
 
         if timer_mode[:2] == 'on' or timer_mode[:5] == 'every':
@@ -248,6 +250,8 @@ class Chronograph:
             job()
         self.thread_lock = False
         
+
+
 
 def job_function_tester(jobs):
     '''runs each function in the timer_jobs dictionary and 

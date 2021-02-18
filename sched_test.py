@@ -49,8 +49,8 @@ maker.create_timer('every minute', minute_function)
 maker.create_timer('schedule', test_function, '17:32')
 
 #### helper method to check function times
-job_function_tester(maker.timer_jobs)
-exit()
+#job_function_tester(maker.timer_jobs)
+#exit()
 
 #### Run Chronograph
 #Chronograph(maker.timer_jobs, 'US/Pacific')
