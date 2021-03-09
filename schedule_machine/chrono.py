@@ -20,6 +20,7 @@ __all__ = ['chronograph',]
 # Rev 0.0.3 - debug/neaten, add wait_to_run, redid validations
 # Rev 0.0.4 - change function check to hasattr(func, '__call__')
 # Rev 0.0.5 - add thread1 for every second timers
+# Rev 0.0.6 - add variable poll_millis
 
 __version__ = 'vZ.0.5'
 # Z is non-production developmental rev
@@ -119,10 +120,11 @@ class Timers:
 
 
 class Chronograph:
-    def __init__(self, jobs, local_time_zone='UTC', wait_to_run=False):
+    def __init__(self, jobs, local_time_zone='UTC', poll_millis=100, wait_to_run=False):
         '''Chronograph object runs timers
-        Polling is .1 seconds
+        Standard Polling is .1 seconds
         every poll timers run in primary thread
+        every second timers run in thread1
         A separate thread (chrono_thread) is created for all other timers
         chrono_thread has a lock so only one can run at a time
         If chrono_thread is locked, the next chrono_thread will be skipped
@@ -133,7 +135,7 @@ class Chronograph:
         self.jobs = jobs
 
         # polling time in milliseconds
-        self.POLL_MILLIS = 100  # .1 seconds
+        self.POLL_MILLIS = poll_millis  
         self.local_time_zone = local_time_zone
 
         if wait_to_run == False:
