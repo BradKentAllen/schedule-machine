@@ -41,12 +41,12 @@ maker = Timers()
 
 maker.create_timer('every poll', poll_test)
 maker.create_timer('every poll', poll_test2)
-maker.create_timer('every second', second_function)
-maker.create_timer('on the 5 second', five_second_function)
-maker.create_timer('on the 15 second', fifteen_second_function)
-maker.create_timer('every minute', minute_function)
+#maker.create_timer('every second', second_function)
+#maker.create_timer('on the 5 second', five_second_function)
+#maker.create_timer('on the 15 second', fifteen_second_function)
+#maker.create_timer('every minute', minute_function)
 
-maker.create_timer('schedule', test_function, '17:32')
+#maker.create_timer('schedule', test_function, '17:32')
 
 #### helper method to check function times
 #job_function_tester(maker.timer_jobs)

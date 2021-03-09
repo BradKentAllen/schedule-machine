@@ -19,8 +19,9 @@ __all__ = ['chronograph',]
 # Rev 0.0.2 - bug fix: added append to schedule call
 # Rev 0.0.3 - debug/neaten, add wait_to_run, redid validations
 # Rev 0.0.4 - change function check to hasattr(func, '__call__')
+# Rev 0.0.5 - add every second timers to thread
 
-__version__ = 'vZ.0.3'
+__version__ = 'vZ.0.5'
 # Z is non-production developmental rev
 
 from datetime import datetime
@@ -148,6 +149,7 @@ class Chronograph:
 
         # this only allows one thread to run at a time
         self.thread_lock = False
+        self.thread1_lock = False
 
         while True:
             milli = (time() * 1000) - start_milli
@@ -162,6 +164,7 @@ class Chronograph:
             # every poll jobs are run in the main thread
             # all others are grouped and run in a separate thread
             self.thread_jobs = []
+            self.thread1_jobs = []
 
             if (milli - last_milli) >= self.POLL_MILLIS:
                 HHMMSS = get_time(self.local_time_zone)
@@ -173,7 +176,8 @@ class Chronograph:
                 if last_second != HHMMSS[2]:
                     #### Every second jobs ####
                     for job in self.jobs['every second']:
-                        job()
+                        #job()
+                        self.thread1_jobs.append(job)
                     last_second = HHMMSS[2]
 
                     #### On second jobs ####
@@ -223,7 +227,19 @@ class Chronograph:
                                 self.thread_jobs.append(job)
                             last_hour = HHMMSS[0]
 
-                #### Run all jobs but poll in separate thread
+                #### Run all jobs but poll in separate threads
+                # self.thread1 has the every second jobs
+                if self.thread1_lock == False:
+                    chrono_thread1 = threading.Thread(target=self.run_thread_jobs, daemon=True)
+                    chrono_thread1.start()
+                else:
+                    if self.thread1_jobs == []:
+                        pass
+                    else:
+                        if debug == True: print('>>> chrono_thread1 over-run, missed a 1 sec <<<')
+                        pass
+
+                # self.thread has all other jobs
                 if self.thread_lock == False:
                     chrono_thread = threading.Thread(target=self.run_thread_jobs, daemon=True)
                     chrono_thread.start()
@@ -231,7 +247,7 @@ class Chronograph:
                     if self.thread_jobs == []:
                         pass
                     else:
-                        if debug == True: print('>>> LOCKED missed chrono_thread <<<')
+                        if debug == True: print('>>> chrono_thread over-run, missed jobs call <<<')
                         pass
 
 
@@ -249,6 +265,12 @@ class Chronograph:
         for job in self.thread_jobs:
             job()
         self.thread_lock = False
+
+    def run_thread1_jobs(self):
+        self.thread1_lock = True
+        for job in self.thread1_jobs:
+            job()
+        self.thread1_lock = False
         
 
 
