@@ -24,7 +24,8 @@ Python can pose a number of challenges when running timed processes on machines.
 * timer is run every 100 milliseconds (.1 seconds), referred to as a poll.
 * threading is used to give the 'every poll' timers priority
   * 'every poll' timers run sequentially in the primary thread.  As such, they are a blocker.  If the total process time for all  'every poll' timers exceeds 100 milliseconds then it will push out the primary thread.  Eventually it will miss a poll and less than 10 polls will occur in a second.
-  * All other timers are run in a separate thread.  A thread lock limits these timers to a single thread.  If the chrono_thread (all non-every poll timers) is still running when a second chrono_thread is called, the second one will be ignored.
+  * All other timers are run in two separate threads.  One has timers that are called every second.  All other timers are in a second thread.  Thread locks limits these timers to a single thread.  If the every second thread is running when the next every second is called, the next one will be ignored.  The same is true for the thread with all other timers.
+  * Every second timers operate much like every poll.  So if they total to more than a second in operation time, the next every second action will be ignored.  Since python does not parallel process, these timers will affect each other across the threads.
 
 
 
