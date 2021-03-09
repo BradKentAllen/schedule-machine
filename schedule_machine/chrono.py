@@ -19,7 +19,7 @@ __all__ = ['chronograph',]
 # Rev 0.0.2 - bug fix: added append to schedule call
 # Rev 0.0.3 - debug/neaten, add wait_to_run, redid validations
 # Rev 0.0.4 - change function check to hasattr(func, '__call__')
-# Rev 0.0.5 - add every second timers to thread
+# Rev 0.0.5 - add thread1 for every second timers
 
 __version__ = 'vZ.0.5'
 # Z is non-production developmental rev
@@ -230,7 +230,7 @@ class Chronograph:
                 #### Run all jobs but poll in separate threads
                 # self.thread1 has the every second jobs
                 if self.thread1_lock == False:
-                    chrono_thread1 = threading.Thread(target=self.run_thread_jobs, daemon=True)
+                    chrono_thread1 = threading.Thread(target=self.run_thread1_jobs, daemon=True)
                     chrono_thread1.start()
                 else:
                     if self.thread1_jobs == []:

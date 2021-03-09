@@ -8,24 +8,31 @@ poll_count = 0
 
 def poll_test():
 	global poll_count
-	print(poll_count, end='')
+	print('-', end='')
+
 	poll_count +=1
 
+
 def poll_test2():
-	print('-', end='')
-	sleep(.07)
+	#print('-', end='')
+	print('+', end='')
+
+	#sleep(.05)
+
 
 def second_function():
-	global poll_count
+	print('\n')
 	print(get_time_stamp('US/Pacific'))
-	poll_count = 0
+	
 
 def five_second_function():
-	print('5 second function')
+	global poll_count
+	print(f'\n--{poll_count}--')
+	poll_count = 0
 
 def fifteen_second_function():
 	print('start 15 second function')
-	sleep(10)
+	sleep(4)
 	print('end 15 second function')
 
 def minute_function():
@@ -41,9 +48,9 @@ maker = Timers()
 
 maker.create_timer('every poll', poll_test)
 maker.create_timer('every poll', poll_test2)
-#maker.create_timer('every second', second_function)
-#maker.create_timer('on the 5 second', five_second_function)
-#maker.create_timer('on the 15 second', fifteen_second_function)
+maker.create_timer('every second', second_function)
+maker.create_timer('on the 5 second', five_second_function)
+maker.create_timer('on the 15 second', fifteen_second_function)
 #maker.create_timer('every minute', minute_function)
 
 #maker.create_timer('schedule', test_function, '17:32')
